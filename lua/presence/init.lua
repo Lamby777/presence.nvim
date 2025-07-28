@@ -68,11 +68,21 @@ local default_file_assets = require("presence.file_assets")
 local plugin_managers = require("presence.plugin_managers")
 local Discord = require("presence.discord")
 
+local function system_noninteractive(cmd)
+    local oldflag = vim.opt.shellcmdflag
+    vim.opt.shellcmdflag = "-c"
+
+    local out = vim.fn.system(cmd)
+    vim.opt.shellcmdflag = oldflag
+
+    return out
+end
+
 function Presence:setup(...)
     -- Support setup invocation via both dot and colon syntax.
     -- To maintain backwards compatibility, colon syntax will still
     -- be supported, but dot syntax should be recommended.
-    local args = {...}
+    local args = { ... }
     local options = args[1]
     if #args == 0 then
         options = self
@@ -89,7 +99,7 @@ function Presence:setup(...)
     -- Get operating system information including path separator
     -- http://www.lua.org/manual/5.3/manual.html#pdf-package.config
     local uname = vim.loop.os_uname()
-    local separator = package.config:sub(1,1)
+    local separator = package.config:sub(1, 1)
     local wsl_distro_name = os.getenv("WSL_DISTRO_NAME")
     local os_name = self.get_os_name(uname)
     self.os = {
@@ -102,7 +112,7 @@ function Presence:setup(...)
     local setup_message_fmt = "Setting up plugin for %s"
     if self.os.name then
         local setup_message = self.os.is_wsl
-            and string.format(setup_message_fmt.." in WSL (%s)", self.os.name, vim.inspect(wsl_distro_name))
+            and string.format(setup_message_fmt .. " in WSL (%s)", self.os.name, vim.inspect(wsl_distro_name))
             or string.format(setup_message_fmt, self.os.name)
         self.log:debug(setup_message)
     else
@@ -322,10 +332,10 @@ function Presence:connect(on_done)
         if err == "EISCONN" then
             self.log:info("Already connected to Discord")
         elseif err == "ECONNREFUSED" then
-            self.log:warn("Failed to connect to Discord: "..err.." (is Discord running?)")
+            self.log:warn("Failed to connect to Discord: " .. err .. " (is Discord running?)")
             return
         elseif err then
-            self.log:error("Failed to connect to Discord: "..err)
+            self.log:error("Failed to connect to Discord: " .. err)
             return
         end
 
@@ -351,7 +361,7 @@ function Presence:authorize(on_done)
             self.is_authorized = true
             return on_done()
         elseif err then
-            self.log:error("Failed to authorize with Discord: "..err)
+            self.log:error("Failed to authorize with Discord: " .. err)
             self.is_authorized = false
             return
         end
@@ -370,18 +380,18 @@ function Presence:get_discord_socket_path()
 
     if self.os.is_wsl then
         -- Use socket created by relay for WSL
-        sock_path = "/var/run/"..sock_name
+        sock_path = "/var/run/" .. sock_name
     elseif self.os.name == "windows" then
         -- Use named pipe in NPFS for Windows
-        sock_path = [[\\.\pipe\]]..sock_name
+        sock_path = [[\\.\pipe\]] .. sock_name
     elseif self.os.name == "macos" then
         -- Use $TMPDIR for macOS
         local path = os.getenv("TMPDIR")
 
         if path then
             sock_path = path:match("/$")
-                and path..sock_name
-                or path.."/"..sock_name
+                and path .. sock_name
+                or path .. "/" .. sock_name
         end
     elseif self.os.name == "linux" then
         -- Check various temp directory environment variables
@@ -397,7 +407,7 @@ function Presence:get_discord_socket_path()
             local path = os.getenv(var)
             if path then
                 self.log:debug(string.format("Using runtime path: %s", path))
-                sock_path = path:match("/$") and path..sock_name or path.."/"..sock_name
+                sock_path = path:match("/$") and path .. sock_name or path .. "/" .. sock_name
                 break
             end
         end
@@ -428,7 +438,7 @@ function Presence:get_project_name(file_path)
         and string.format([[cd "%s" && %s]], file_path, project_path_cmd)
         or project_path_cmd
 
-    local project_path = vim.fn.system(project_path_cmd)
+    local project_path = system_noninteractive(project_path_cmd)
     project_path = vim.trim(project_path)
 
     if project_path:find("fatal.*") then
@@ -614,7 +624,7 @@ function Presence.discord_event(on_ready)
             return
         end
 
-        local args = {...}
+        local args = { ... }
         local callback = function()
             on_ready(self, unpack(args))
         end
@@ -673,9 +683,9 @@ function Presence:check_blacklist(buffer, parent_dirpath, project_dirpath)
         -- Match parent either by Lua pattern or by plain string
         local is_parent_directory_blacklisted = parent_dirpath and
             ((parent_dirpath:match(val) == parent_dirpath or
-            parent_dirname:match(val) == parent_dirname) or
-            (parent_dirpath:find(val, nil, true) or
-            parent_dirname:find(val, nil, true)))
+                    parent_dirname:match(val) == parent_dirname) or
+                (parent_dirpath:find(val, nil, true) or
+                    parent_dirname:find(val, nil, true)))
         if is_parent_directory_blacklisted then
             return true
         end
@@ -683,9 +693,9 @@ function Presence:check_blacklist(buffer, parent_dirpath, project_dirpath)
         -- Match project either by Lua pattern or by plain string
         local is_project_directory_blacklisted = project_dirpath and
             ((project_dirpath:match(val) == project_dirpath or
-            project_dirname:match(val) == project_dirname) or
-            (project_dirpath:find(val, nil, true) or
-            project_dirname:find(val, nil, true)))
+                    project_dirname:match(val) == project_dirname) or
+                (project_dirpath:find(val, nil, true) or
+                    project_dirname:find(val, nil, true)))
         if is_project_directory_blacklisted then
             return true
         end
@@ -695,10 +705,10 @@ function Presence:check_blacklist(buffer, parent_dirpath, project_dirpath)
     -- check against git repo blacklist
     local git_repo = Presence:get_git_repo_url(parent_dirpath)
     if git_repo then
-      self.log:debug(string.format("Checking git repo blacklist for %s", git_repo))
+        self.log:debug(string.format("Checking git repo blacklist for %s", git_repo))
     else
-      self.log:debug("No git repo, skipping blacklist check")
-      return false
+        self.log:debug("No git repo, skipping blacklist check")
+        return false
     end
 
 
@@ -707,7 +717,7 @@ function Presence:check_blacklist(buffer, parent_dirpath, project_dirpath)
 
         local is_git_repo_blacklisted = git_repo and
             ((git_repo:match(val) == git_repo) == git_repo or
-            (git_repo:find(val, nil, true)))
+                (git_repo:find(val, nil, true)))
 
         if is_git_repo_blacklisted then
             return true
@@ -729,13 +739,12 @@ function Presence:get_git_repo_url(parent_dirpath)
             or git_url_cmd
 
         -- Trim and coerce empty string value to null
-        repo_url = vim.trim(vim.fn.system(cmd))
+        repo_url = vim.trim(system_noninteractive(cmd))
         repo_url = repo_url ~= "" and repo_url or nil
 
         return repo_url
     end
 end
-
 
 -- Get either user-configured buttons or the create default "View Repository" button definition
 function Presence:get_buttons(buffer, parent_dirpath)
@@ -759,7 +768,6 @@ function Presence:get_buttons(buffer, parent_dirpath)
 
     -- Default behavior to show a "View Repository" button if the repo URL is valid
     if repo_url then
-
         -- Check if repo url uses short ssh syntax
         local domain, project = repo_url:match("^git@(.+):(.+)$")
         if domain and project then
@@ -1077,11 +1085,11 @@ function Presence:register_and_sync_peer(id, socket)
         end
     end
 
-    self:call_remote_method(socket, "sync_self", {{
+    self:call_remote_method(socket, "sync_self", { {
         last_activity = self.last_activity,
         peers = peers,
         workspaces = self.workspaces,
-    }})
+    } })
 end
 
 -- Register self to any remote Neovim instances
@@ -1159,11 +1167,11 @@ function Presence:sync_self_activity()
             end
         end
 
-        self:call_remote_method(peer.socket, "sync_peer_activity", {{
+        self:call_remote_method(peer.socket, "sync_peer_activity", { {
             last_activity = self.last_activity,
             peers = peers,
             workspaces = self.workspaces,
-        }})
+        } })
     end
 end
 
