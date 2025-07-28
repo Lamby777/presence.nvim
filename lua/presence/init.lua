@@ -68,16 +68,6 @@ local default_file_assets = require("presence.file_assets")
 local plugin_managers = require("presence.plugin_managers")
 local Discord = require("presence.discord")
 
-local function system_noninteractive(cmd)
-    local oldflag = vim.opt.shellcmdflag
-    vim.opt.shellcmdflag = "-c"
-
-    local out = vim.fn.system(cmd)
-    vim.opt.shellcmdflag = oldflag
-
-    return out
-end
-
 function Presence:setup(...)
     -- Support setup invocation via both dot and colon syntax.
     -- To maintain backwards compatibility, colon syntax will still
@@ -433,13 +423,13 @@ function Presence:get_project_name(file_path)
 
     -- TODO: Only checks for a git repository, could add more checks here
     -- Might want to run this in a background process depending on performance
-    local project_path_cmd = "git rev-parse --show-toplevel"
-    project_path_cmd = file_path
-        and string.format([[cd "%s" && %s]], file_path, project_path_cmd)
-        or project_path_cmd
+    local project_path_cmd = { "git", "rev-parse", "--show-toplevel" }
+    if file_path then
+        table.insert(project_path_cmd, "-C")
+        table.insert(project_path_cmd, file_path)
+    end
 
-    local project_path = system_noninteractive(project_path_cmd)
-    project_path = vim.trim(project_path)
+    local project_path = vim.trim(vim.fn.system(project_path_cmd))
 
     if project_path:find("fatal.*") then
         self.log:info("Not a git repository, skipping...")
@@ -733,13 +723,14 @@ function Presence:get_git_repo_url(parent_dirpath)
     if parent_dirpath then
         -- Escape quotes in the file path
         local path = parent_dirpath:gsub([["]], [[\"]])
-        local git_url_cmd = "git config --get remote.origin.url"
-        local cmd = path
-            and string.format([[cd "%s" && %s]], path, git_url_cmd)
-            or git_url_cmd
+        local git_url_cmd = { "git", "config", "--get", "remote.origin.url" }
+        if path then
+            table.insert(git_url_cmd, "-C")
+            table.insert(git_url_cmd, path)
+        end
 
         -- Trim and coerce empty string value to null
-        repo_url = vim.trim(system_noninteractive(cmd))
+        repo_url = vim.trim(vim.fn.system(git_url_cmd))
         repo_url = repo_url ~= "" and repo_url or nil
 
         return repo_url
