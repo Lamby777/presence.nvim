@@ -429,6 +429,8 @@ function Presence:get_project_name(file_path)
         table.insert(project_path_cmd, 3, file_path)
     end
 
+    print(vim.inspect(project_path_cmd))
+
     local project_path = vim.trim(vim.fn.system(project_path_cmd))
 
     if project_path:find("fatal.*") then
@@ -728,6 +730,8 @@ function Presence:get_git_repo_url(parent_dirpath)
             table.insert(git_url_cmd, 2, "-C")
             table.insert(git_url_cmd, 3, path)
         end
+
+        print(vim.inspect(git_url_cmd))
 
         -- Trim and coerce empty string value to null
         repo_url = vim.trim(vim.fn.system(git_url_cmd))
