@@ -425,8 +425,8 @@ function Presence:get_project_name(file_path)
     -- Might want to run this in a background process depending on performance
     local project_path_cmd = { "git", "rev-parse", "--show-toplevel" }
     if file_path then
-        table.insert(project_path_cmd, "-C")
-        table.insert(project_path_cmd, file_path)
+        table.insert(project_path_cmd, 2, "-C")
+        table.insert(project_path_cmd, 3, file_path)
     end
 
     local project_path = vim.trim(vim.fn.system(project_path_cmd))
@@ -725,8 +725,8 @@ function Presence:get_git_repo_url(parent_dirpath)
         local path = parent_dirpath:gsub([["]], [[\"]])
         local git_url_cmd = { "git", "config", "--get", "remote.origin.url" }
         if path then
-            table.insert(git_url_cmd, "-C")
-            table.insert(git_url_cmd, path)
+            table.insert(git_url_cmd, 2, "-C")
+            table.insert(git_url_cmd, 3, path)
         end
 
         -- Trim and coerce empty string value to null
